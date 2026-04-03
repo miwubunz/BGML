@@ -12,7 +12,7 @@ config_version=5
 
 config/name="BGML"
 config/features=PackedStringArray("4.6", "GL Compatibility")
-config/icon="res://icon.svg"
+config/icon="uid://vkj2357oox4m"
 
 [physics]
 
