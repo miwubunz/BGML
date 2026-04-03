@@ -16,12 +16,9 @@ static func load_bgml(root: Node, content: String) -> void:
 
 	var current_node: Node = null
 
-	var script = "";
-	var script_loaded = false;
 	var on_scene = false;
-	var style = "";
 
-	var incoming_signals: Array[Dictionary] = []
+	var signals: Array[Dictionary] = []
 
 	var ids: Dictionary[String, Node] = {}
 
@@ -34,12 +31,6 @@ static func load_bgml(root: Node, content: String) -> void:
 				match node_name:
 					"Scene":
 						on_scene = true
-						# if "style" in args:
-						# 	var style_path = args.get("style", "")
-						# 	if FileAccess.file_exists(style_path):
-						# 		style = style_path
-						# 	else:
-						# 		printerr("Style \"%s\" does not exist" % style_path)
 						continue
 					"GDScript":
 						if "src" in args:
@@ -58,10 +49,11 @@ static func load_bgml(root: Node, content: String) -> void:
 						else:
 							var res = load(script_path)
 
-							if res == Script:
+
+							if res is Script:
 								current_node.set_script(res)
 							else:
-								printerr("script file \"%s\" does not return a script reference")
+								printerr("script file \"%s\" does not return a script reference" % script_path)
 						args.erase("script")
 
 					
@@ -75,12 +67,11 @@ static func load_bgml(root: Node, content: String) -> void:
 							var sn = arg.substr(2)
 							var s = ClassDB.class_get_signal(node.get_class(), sn)
 							if s:
-								incoming_signals.append({
+								signals.append({
 									"node": current_node,
 									"signal_name": sn,
 									"arguments": args.get(arg)
 								})
-								
 								continue
 
 						if arg in node:
@@ -116,8 +107,8 @@ static func load_bgml(root: Node, content: String) -> void:
 				if !stack.is_empty():
 					stack.pop_back()
 	
-	if !incoming_signals.is_empty():
-		for data in incoming_signals:
+	if !signals.is_empty():
+		for data in signals:
 			connect_signals(root, data.node, data.signal_name, data.arguments, ids)
 
 static func get_args_as_dict(parser: XMLParser) -> Dictionary[String, String]:
@@ -130,57 +121,41 @@ static func get_args_as_dict(parser: XMLParser) -> Dictionary[String, String]:
 	return result
 
 static func connect_signals(root: Node, node: Node, sign: String, str: String, ids: Dictionary[String, Node]):
-	var callable_bones = str.split(":") # id : method[]
-	if callable_bones.size() == 2:
-		var id = callable_bones[0].strip_edges()
-		if id in ids or id == "self":
-			var id_node: Node = root if id == "self" else ids.get(id)
-			var split = split_method(node, callable_bones[1].strip_edges())
-			if !split.is_empty():
-				var callable = Callable(id_node, split.left)
-				callable = callable.bindv(split.right)
+	if str.begins_with("@"): # @id : method[args]
+		var callable_bones = str.trim_prefix("@").split(":")
+		if callable_bones.size() >= 2:
+			var id = callable_bones[0].strip_edges()
+			if id in ids or id in ["self", "root"]:
+				var id_node: Node
+				match id:
+					"root": id_node = root
+					"self": id_node = node
+					_: ids.get(id)
+				var callable = split_method(node, id_node, ":".join(callable_bones.slice(1)).strip_edges())
 				node.connect(sign, callable)
 				return
+	else: # expressions
+		node.connect(sign, func():
+			var exp = Expression.new()
+			exp.parse(str.dedent())
+			exp.execute([], node))
 
-	printerr("invalid signal: signal pattern is \'signal => node_id : method[args]\'")
-
-static func split_method(this: Node, str: String) -> Dictionary:
+static func split_method(this: Node, id_node: Node, str: String) -> Callable:
 	var parsing = func(s: String):
 		var exp = Expression.new()
 		exp.parse(s)
 		return exp.execute([], this)
 
-	# var splitter = func(c: String) -> Array:
-	# 	var args: Array = []
-	# 	var current = ""
-	# 	var stack: Array[String] = []
-	# 	for i in c:
-	# 		if stack.is_empty():
-	# 			if i == ",":
-	# 				args.append(is_self.call(current.strip_edges()))
-	# 				current = ""
-	# 				continue
-	# 		elif i in "([{":
-	# 			stack.append(i)
-	# 		elif i in ")]}":
-	# 			if stack[-1] == i:
-	# 				stack.pop_back()
-	# 		elif i == "'":
-	# 			if stack[-1] == i:
-	# 				stack.pop_back()
-	# 			else:
-	# 				stack.append(i)
-	# 		current += i
-	# 	var strip = current.strip_edges()
-	# 	if !strip.is_empty():
-	# 		args.append(is_self.call(current.strip_edges()))
-	# 	return args
-
 	var split = str.find("[")
-	return {"left": str.substr(0, split), "right": parsing.call(str.substr(split))} if split > 0 else {}
+	var left = str.substr(0, split)
 
+	var callable = Callable(id_node, left)
+	callable = callable.bindv(parsing.call(str.substr(split)))
+	return callable
+
+		
 static func to_script(content: String) -> GDScript:
 	var script = GDScript.new()
-	script.source_code = content.dedent()
+	script.source_code = content.dedent().strip_edges()
 	script.reload()
 	return script

@@ -7,8 +7,8 @@
 		<Button script="button.gd">
 			test :3
 		</Button>
-		<!-- signals="mouse_entered => self : hover[self] and pressed => self : press[self] and mouse_exited => self : unhover[self]" -->
-		<Button onmouse_entered="self : hover[self]" onpressed="self : press[self]" onmouse_exited="self : unhover[self]">hover me! :D</Button>
+		<Button onmouse_entered="@root: hover[self]" onpressed="@root : press[self]" onmouse_exited="@root : unhover[self]">hover me! :D</Button>
+		<Button onpressed="queue_free()">if you press me i'm gone :c</Button>
 		<TextEdit id="edit" placeholder_text="type here..." custom_minimum_size="Vector2(200,200)"/>
 	</VBoxContainer>
 
@@ -24,7 +24,7 @@
 		func press(node):
 			node.mouse_filter = 2
 			var original = node.text
-			node.text = "Owh!~ Pls dont poke me! %s////%s" % [char(62), char(60)]
+			node.text = "Owh!~ Pls dont poke me! &gt;////&lt;"
 			var timer = Timer.new()
 			timer.wait_time = 1
 			node.add_child(timer)
