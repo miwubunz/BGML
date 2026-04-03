@@ -1,0 +1,38 @@
+<Scene>
+	<!-- wrap your content inside a container for a comfier experience!! <3 -->
+	<VBoxContainer id="box">
+		<RichTextLabel bbcode_enabled="true" fit_content="true" autowrap_mode="TextServer.AUTOWRAP_OFF" id="text_class">
+			[center]this is a [wave][b]BGML[/b][/wave] test! -w-[/center]
+		</RichTextLabel>
+		<Button script="button.gd">
+			test :3
+		</Button>
+		<!-- signals="mouse_entered => self : hover[self] and pressed => self : press[self] and mouse_exited => self : unhover[self]" -->
+		<Button onmouse_entered="self : hover[self]" onpressed="self : press[self]" onmouse_exited="self : unhover[self]">hover me! :D</Button>
+		<TextEdit id="edit" placeholder_text="type here..." custom_minimum_size="Vector2(200,200)"/>
+	</VBoxContainer>
+
+	<GDScript>
+		extends Node
+
+		func hover(node):
+			node.text = "Hehehe~ -w-"
+
+		func unhover(node):
+			node.text = "hover me! :D"
+
+		func press(node):
+			node.mouse_filter = 2
+			var original = node.text
+			node.text = "Owh!~ Pls dont poke me! %s////%s" % [char(62), char(60)]
+			var timer = Timer.new()
+			timer.wait_time = 1
+			node.add_child(timer)
+			timer.start()
+			await timer.timeout
+			timer.queue_free()
+			node.text = original
+			node.mouse_filter = 0
+	</GDScript>
+
+</Scene>
